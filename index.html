@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARC計算ツール</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#004080">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>ARC計算ツール</h1>
+
+<div class="input-group">
+  <label>日付：</label>
+  <input type="date" id="race-date">
+</div>
+<div class="input-group">
+  <label>会場：</label>
+  <select id="race-place">
+    <option value="桐生">桐生</option>
+    <option value="戸田">戸田</option>
+    <option value="江戸川">江戸川</option>
+    <option value="平和島">平和島</option>
+    <option value="多摩川">多摩川</option>
+    <option value="浜名湖">浜名湖</option>
+    <option value="蒲郡">蒲郡</option>
+    <option value="常滑">常滑</option>
+    <option value="津">津</option>
+    <option value="三国">三国</option>
+    <option value="びわこ">びわこ</option>
+    <option value="住之江">住之江</option>
+    <option value="尼崎">尼崎</option>
+    <option value="鳴門">鳴門</option>
+    <option value="丸亀">丸亀</option>
+    <option value="児島">児島</option>
+    <option value="宮島">宮島</option>
+    <option value="徳山">徳山</option>
+    <option value="下関">下関</option>
+    <option value="若松">若松</option>
+    <option value="芦屋">芦屋</option>
+    <option value="福岡">福岡</option>
+    <option value="唐津">唐津</option>
+    <option value="大村">大村</option>
+  </select>
+</div>
+<div class="input-group">
+  <label>レース：</label>
+  <select id="race-number">
+    <option value="1R">1R</option>
+    <option value="2R">2R</option>
+    <option value="3R">3R</option>
+    <option value="4R">4R</option>
+    <option value="5R">5R</option>
+    <option value="6R">6R</option>
+    <option value="7R">7R</option>
+    <option value="8R">8R</option>
+    <option value="9R">9R</option>
+    <option value="10R">10R</option>
+    <option value="11R">11R</option>
+    <option value="12R">12R</option>
+  </select>
+</div>
+
+<div style="overflow-x: auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>艇番</th>
+        <th>全国勝率</th>
+        <th>当地勝率</th>
+        <th>能力指数</th>
+        <th>3連対率</th>
+        <th>コース勝率</th>
+        <th>得点率</th>
+        <th>ARC</th>
+      </tr>
+    </thead>
+    <tbody id="arc-table-body"></tbody>
+  </table>
+</div>
+
+<button onclick="clearInputs()">クリア</button>
+<button onclick="saveToLocalStorage()">保存</button>
+<button onclick="downloadCSV()">CSV出力</button>
+<button onclick="showHistory()">履歴一覧表示</button>
+
+<div class="result" id="result"></div>
+<div class="result" id="history"></div>
+
+<script>
+const tbody = document.getElementById('arc-table-body');
+
+for (let i = 1; i <= 6; i++) {
+  let row = `<tr><td>${i}号艇</td>`;
+  for (let j = 1; j <= 6; j++) {
+    row += `<td><input type="number" step="0.1" id="input-${i}-${j}" oninput="calcARC()"></td>`;
+  }
+  row += `<td id="arc-${i}" style="min-width: 60px; text-align: center;">0.00</td></tr>`;
+  tbody.innerHTML += row;
+}
+
+function calcARC() {
+  for (let i = 1; i <= 6; i++) {
+    let sum = 0;
+    for (let j = 1; j <= 6; j++) {
+      sum += parseFloat(document.getElementById(`input-${i}-${j}`).value) || 0;
+    }
+    document.getElementById(`arc-${i}`).innerText = sum.toFixed(2);
+  }
+}
+
+function clearInputs() {
+  document.querySelectorAll('input[type="number"]').forEach(input => input.value = '');
+  document.querySelectorAll('[id^="arc-"]').forEach(arc => arc.innerText = '0.00');
+}
+
+function saveToLocalStorage() {
+  const date = document.getElementById('race-date').value;
+  const place = document.getElementById('race-place').value;
+  const race = document.getElementById('race-number').value;
+
+  const raceData = [];
+  for (let i = 1; i <= 6; i++) {
+    const values = [];
+    for (let j = 1; j <= 6; j++) {
+      values.push(parseFloat(document.getElementById(`input-${i}-${j}`).value) || 0);
+    }
+    const arc = document.getElementById(`arc-${i}`).innerText;
+    raceData.push({boat: `${i}号艇`, values, arc});
+  }
+
+  const savedData = JSON.parse(localStorage.getItem('arcSavedData') || '[]');
+  savedData.push({date, place, race, data: raceData});
+  localStorage.setItem('arcSavedData', JSON.stringify(savedData));
+}
+
+function downloadCSV() {
+  const savedData = JSON.parse(localStorage.getItem('arcSavedData') || '[]');
+  let csv = "日付,会場,レース,艇番,全国勝率,当地勝率,能力指数,3連対率,コース勝率,得点率,ARC\n";
+
+  savedData.forEach(item => {
+    item.data.forEach(boat => {
+      csv += `${item.date},${item.place},${item.race},${boat.boat},${boat.values.join(',')},${boat.arc}\n`;
+    });
+  });
+
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'arc_result.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function showHistory() {
+  const savedData = JSON.parse(localStorage.getItem('arcSavedData') || '[]');
+  let html = '<h3>履歴一覧</h3>';
+  savedData.forEach((item, idx) => {
+    html += `<div>${idx + 1}. ${item.date} ${item.place} ${item.race}</div>`;
+  });
+  document.getElementById('history').innerHTML = html;
+}
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('ServiceWorker登録成功'))
+        .catch(error => console.log('ServiceWorker登録失敗', error));
+    });
+  }
+</script>
+</body>
+</html>
+
